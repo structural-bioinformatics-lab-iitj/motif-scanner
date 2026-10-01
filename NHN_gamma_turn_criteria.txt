@@ -1,0 +1,151 @@
+NHN GAMMA TURN DETECTION CRITERIA
+(Dhar, Kishore, Chakrabarti 2019)
+==================================
+
+
+WINDOW
+------
+3 consecutive residues: [i-1, i, i+1]
+  window[0] = residue i-1
+  window[1] = residue i   (central N -- the acceptor in the NHN interaction)
+  window[2] = residue i+1 (the N-H donor)
+
+
+ALL 4 CRITERIA MUST PASS (AND logic)
+=====================================
+
+
+CRITERION (a) -- Ca-Ca distance
+---------------------------------
+  Ca(i-1) ... Ca(i+1)  in range  5.2 A -- 5.8 A
+
+  A narrow window on both sides. Too short or too long -> rejected immediately.
+
+
+CRITERION (b) -- theta angle: N-H(i+1) approaching N(pz)(i)
+--------------------------------------------------------------
+  Requires an explicit H atom on N of residue i+1.
+
+  Step 1 -- Find the backbone H on N(i+1)
+    Search all atoms of residue i+1 for any atom with element == "H"
+    whose distance from N(i+1) is between 0.85 A and 1.30 A. most near Hydrogen N(i+1) you can consider
+    The first one found is taken as the backbone amide H.
+    - If no H found -> criterion fails -> window rejected. add Hydrogen using reduce
+
+  Step 2 -- Build the peptide plane normal at N(i)
+    Three atom positions needed:
+      C(i-1)  = carbonyl C of residue i-1   [ window[0]["C"] ]
+      N(i)    = amide N of residue i         [ window[1]["N"] ]
+      Ca(i)   = alpha carbon of residue i    [ window[1]["CA"] ]
+
+    Two vectors formed at N(i):
+      v1 = C(i-1) - N(i)
+      v2 = Ca(i)  - N(i)
+
+    Cross product gives the normal to the peptide plane at N(i):
+      normal = v1 x v2
+      normal = normalize(normal)
+
+    This normal points perpendicular to the C-N-Ca plane,
+    i.e., along the pz orbital direction of N(i).
+
+  Step 3 -- Compute theta
+    Vector from N(i) toward H(i+1):
+      v_H = position_of_H(i+1) - position_of_N(i)
+      v_H = normalize(v_H)
+
+      theta = arccos( | v_H . normal | )
+
+    The absolute value is taken so direction (above/below the plane)
+    does not matter -- only how close the approach is to perpendicular.
+
+  Requirement:
+      theta < 30 degrees
+
+  A small theta means H(i+1) is approaching N(i) nearly along the pz
+  orbital (perpendicular to the peptide plane), which is the geometry
+  of an NHN interaction.
+
+
+CRITERION (c) -- C5 intraresidue ring at residue i-1
+------------------------------------------------------
+  Checks that residue i-1 is in a C5-type conformation: the backbone
+  amide H of i-1 is close to its own carbonyl oxygen.
+
+  Step 1 -- Get backbone H on N(i-1)
+    Same method as above: search for H within 0.85-1.30 A of N(i-1).
+    - If no H found -> criterion fails -> window rejected.
+
+  Step 2 -- Distance check
+      H(i-1) ... O(i-1) < 3.0 A
+
+    Both atoms are on the same residue (window[0]):
+      H = backbone amide H found above
+      O = window[0]["O"], the carbonyl oxygen of residue i-1
+
+    The 5-membered ring being tested:
+      N(i-1) - H(i-1) ... O(i-1) - C(i-1) - Ca(i-1)
+
+
+CRITERION (d) -- phi/psi of the central residue i
+---------------------------------------------------
+  phi and psi of window[1] (residue i) are looked up from phi_psi_map
+  (built by BioPython PPBuilder). If either is None -> rejected.
+
+  Assigned to subtype by strict tolerance windows around cluster
+  centres from Dhar et al. (2019):
+
+  Classical NHN gamma-turn:
+      phi(i) = +59 deg +/- 13 deg   ->   range  [+46, +72]
+      psi(i) = +36 deg +/- 16 deg   ->   range  [+20, +52]
+    Both must hold simultaneously.
+
+  Inverse NHN gamma-turn:
+      phi(i) = -72 deg +/- 18 deg   ->   range  [-90, -54]
+      psi(i) = -22 deg +/- 20 deg   ->   range  [-42,  -2]
+    Both must hold simultaneously.
+
+  If phi/psi falls outside both windows -> window rejected entirely
+  (no catch-all subtype for NHN turns).
+
+
+FULL DECISION FLOW
+==================
+
+  for each 3-residue window [i-1, i, i+1]:
+
+    (a) 5.2 A <= Ca(i-1)...Ca(i+1) <= 5.8 A            -> else reject
+
+    (b) Find H on N(i+1) within 0.85-1.30 A of N
+        Build peptide plane normal at N(i) via C(i-1) x Ca(i)
+        theta = arccos(| normalize(H(i+1)-N(i)) . normal |)
+        theta < 30 degrees                               -> else reject
+
+    (c) Find H on N(i-1) within 0.85-1.30 A of N
+        H(i-1) ... O(i-1) < 3.0 A                       -> else reject
+
+    (d) phi(i) and psi(i) from PPBuilder
+        classical: phi in [+46,+72], psi in [+20,+52]  -> subtype = "classical"
+        inverse:   phi in [-90,-54], psi in [-42, -2]  -> subtype = "inverse"
+        neither                                          -> reject
+
+
+KEY NUMBERS
+===========
+
+  Criterion  Parameter                        Value
+  ---------  ---------                        -----
+  (a)        Ca...Ca lower bound              5.2 A
+  (a)        Ca...Ca upper bound              5.8 A
+  (b)        theta max                        < 30 degrees
+  (c)        H...O C5 distance                < 3.0 A
+  (d)        Classical phi centre +/- tol     +59 +/- 13 degrees
+  (d)        Classical psi centre +/- tol     +36 +/- 16 degrees
+  (d)        Inverse  phi centre +/- tol      -72 +/- 18 degrees
+  (d)        Inverse  psi centre +/- tol      -22 +/- 20 degrees
+
+
+REFERENCE
+=========
+  Dhar J, Kishore M, Chakrabarti P (2019).
+  Methods for identification and analysis of NHN gamma-turns.

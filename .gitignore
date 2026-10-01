@@ -1,0 +1,21 @@
+# Local environment and secrets
+.env
+.venv/
+venv/
+
+# Python build artefacts
+__pycache__/
+*.py[cod]
+
+# Windows file-transfer metadata
+*:Zone.Identifier
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Runtime output
+*.log
+uploads/
+results/

@@ -1,0 +1,13 @@
+# Motif Scanner — Python dependencies.
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# Two external programs are NOT pip packages:
+#   mkdssp    DSSP, required for Ω-loops and secondary structure  (apt install dssp,
+#             or conda install -c conda-forge dssp=3.1.4)
+#   freesasa  optional; a dependency-free fallback is used when it is unavailable
+flask>=3.0
+biopython>=1.83
+numpy>=1.26
+python-dotenv>=1.0
+# Optional: interface accessibility via FreeSASA (the tool falls back without it)
+freesasa>=2.2 ; python_version < "3.14"
